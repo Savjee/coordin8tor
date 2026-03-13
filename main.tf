@@ -1,60 +1,8 @@
-# 1. Main Postgres Database (Local Docker)
-resource "docker_image" "postgres" {
-  name = "postgres:14-alpine"
-}
-
-# Generate init.sql based on configuration
-resource "local_file" "postgres_init" {
-  filename = "${path.module}/docker/postgres-init/init.sql"
-  content  = join("\n", [
-    for key, inst in local.instances : <<EOF
--- Create User and DB for ${inst.name}
-CREATE USER "${inst.hostname}" WITH PASSWORD 'password_${inst.hostname}';
-CREATE DATABASE "${inst.hostname}" OWNER "${inst.hostname}";
-GRANT ALL PRIVILEGES ON DATABASE "${inst.hostname}" TO "${inst.hostname}";
-EOF
-  ])
-}
-
-resource "docker_container" "postgres" {
-  name  = "coordin8tor-postgres"
-  image = docker_image.postgres.image_id
-
-  env = [
-    "POSTGRES_PASSWORD=mysecretpassword",
-    "POSTGRES_USER=postgres",
-    "POSTGRES_DB=postgres"
-  ]
-
-  ports {
-    internal = 5432
-    external = 5432
-  }
-
-  volumes {
-    host_path      = abspath(local_file.postgres_init.filename)
-    container_path = "/docker-entrypoint-initdb.d/init.sql"
-  }
-}
-
-# 2. n8n Instances
+# n8n instances (SQLite-only)
 resource "docker_image" "n8n_images" {
   for_each = local.instances
 
-  name = each.value.custom_build != null ? "custom-n8n-${each.key}:${each.value.n8n_version}" : each.value.image
-
-  dynamic "build" {
-    for_each = each.value.custom_build != null ? [each.value.custom_build] : []
-    content {
-      context    = build.value.context
-      dockerfile = build.value.dockerfile
-      build_args = merge(
-        { N8N_VERSION = each.value.n8n_version },
-        build.value.args
-      )
-      tag = ["custom-n8n-${each.key}:${each.value.n8n_version}"]
-    }
-  }
+  name = each.value.image
 }
 
 resource "random_password" "n8n_encryption_key" {
@@ -63,19 +11,21 @@ resource "random_password" "n8n_encryption_key" {
   special  = true
 }
 
+resource "docker_volume" "n8n_data" {
+  for_each = local.instances
+
+  name = "${local.resource_prefix}n8n-data-${each.value.hostname}"
+}
+
 resource "docker_container" "n8n_instances" {
   for_each = local.instances
 
-  name  = "n8n-${each.value.hostname}"
+  name  = "${local.resource_prefix}n8n-${each.value.hostname}"
   image = docker_image.n8n_images[each.key].image_id
 
   env = [
-    "DB_TYPE=postgresdb",
-    "DB_POSTGRESDB_HOST=host.docker.internal", # Local dev networking
-    "DB_POSTGRESDB_PORT=5432",
-    "DB_POSTGRESDB_DATABASE=${each.value.hostname}",
-    "DB_POSTGRESDB_USER=${each.value.hostname}",
-    "DB_POSTGRESDB_PASSWORD=password_${each.value.hostname}",
+    "DB_TYPE=sqlite",
+    "DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite",
 
     "N8N_HOST=${each.value.hostname}.localhost",
     "N8N_PORT=5678",
@@ -93,7 +43,10 @@ resource "docker_container" "n8n_instances" {
     external = 5678 + index(keys(local.instances), each.key)
   }
 
-  depends_on = [docker_container.postgres]
+  volumes {
+    volume_name    = docker_volume.n8n_data[each.key].name
+    container_path = "/home/node/.n8n"
+  }
 }
 
 resource "random_password" "n8n_admin_password" {
@@ -115,7 +68,7 @@ resource "null_resource" "n8n_admin_user" {
 
       # Create admin user
       # We ignore failure in case user already exists (idempotency attempt)
-      docker exec n8n-${each.value.hostname} n8n user:create \
+      docker exec ${docker_container.n8n_instances[each.key].name} n8n user:create \
         --email "[email protected]" \
         --firstName "Admin" \
         --lastName "User" \

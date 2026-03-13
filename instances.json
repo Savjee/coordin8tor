@@ -3,29 +3,12 @@
     {
       "name": "Telenet Editorial Project",
       "hostname": "telenet-editorial",
-      "n8n_version": "1.2.3",
-      "image": "n8n/n8n",
+      "n8n_version": "2.11.4",
+      "image": "n8nio/n8n",
       "auth": {
         "allowed_groups": [
           "azure-group-uuid-1",
           "azure-group-uuid-2"
-        ]
-      }
-    },
-    {
-      "name": "Custom Beta Instance",
-      "hostname": "beta-workflow",
-      "n8n_version": "1.5.0-beta",
-      "build": {
-        "context": "./docker/custom-n8n",
-        "dockerfile": "Dockerfile",
-        "args": {
-          "N8N_VERSION": "1.5.0-beta"
-        }
-      },
-      "auth": {
-        "allowed_groups": [
-          "azure-group-uuid-admin"
         ]
       }
     }

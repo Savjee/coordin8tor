@@ -16,8 +16,8 @@ Edit `instances.json` to define your instances:
     {
       "name": "My Project",
       "hostname": "my-project",
-      "n8n_version": "1.2.3",
-      "image": "n8n/n8n",
+      "n8n_version": "2.11.4",
+      "image": "n8nio/n8n",
       "auth": {
         "allowed_groups": ["azure-group-id"]
       }
