@@ -3,3 +3,4 @@
 terraform.tfstate
 terraform.tfstate.backup
 docker/postgres-init/init.sql
+node_modules/

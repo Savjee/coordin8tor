@@ -21,15 +21,6 @@ Edit `instances.json` to define your instances:
       "auth": {
         "allowed_groups": ["azure-group-id"]
       }
-    },
-    {
-      "name": "Custom Project",
-      "hostname": "custom-project",
-      "n8n_version": "1.5.0",
-      "build": {
-        "context": "./docker/custom-n8n",
-        "dockerfile": "Dockerfile"
-      }
     }
   ]
 }
@@ -47,9 +38,8 @@ Edit `instances.json` to define your instances:
     terraform apply
     ```
     This will:
-    *   Start a Postgres container.
-    *   Create a Database and User for each instance.
-    *   Build any custom Docker images.
+    *   Pull fixed Docker images for each configured n8n version.
+    *   Create a persistent Docker volume for each instance.
     *   Start an n8n container for each instance.
 
 3.  **Access**:
@@ -60,4 +50,4 @@ Edit `instances.json` to define your instances:
 
 *   **`instances.json`**: Single source of truth.
 *   **`main.tf`**: Terraform logic.
-*   **`docker/`**: Custom Dockerfiles and init scripts.
+*   **`docker/`**: Local Docker-related assets.
